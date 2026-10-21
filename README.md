@@ -1,6 +1,6 @@
 # CAPE @ PPPC 2026 build clock
 
-Projector screen for the Feel the Power! build-a-thon. It shows a countdown to the 6:30 PM welcome, then a countdown from table intros to the 9:05 PM finalist showcase, with what's happening now and what's coming up.
+Projector screen for the Feel the Power! build-a-thon. It counts down to the 6:30 PM welcome, puts **Build Time** front and center during the build (with the showcase countdown in the top-right card), brings the showcase countdown back to the middle for the table-winner pick, and shows the CrowdHum vote (QR code and hum.vote/POWR) for People's Choice.
 
 Everything is in `index.html` (fonts embedded), so it also works offline: open the file in a browser and go full screen.
 
