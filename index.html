@@ -327,9 +327,9 @@ body.idle .ctl{opacity:0;pointer-events:none}
   const AGENDA = [
     { id: 'doors',    t0: m(18,0),  where: '', title: 'Doors open', note: 'Find a table and get set up. Your proctor can help.' },
     { id: 'welcome',  t0: m(18,30), where: 'Main stage', title: 'Welcome', note: 'The MC officially kicks off the event.' },
-    { id: 'demo',     t0: m(18,40), where: 'Main stage', title: 'Agentic capabilities demo', note: 'A quick look at the agentic tools makers can use tonight.' },
-    { id: 'intros',   t0: m(19,0),  where: 'Your table', title: 'Table intros', note: 'Introduce yourself and share your build idea. 90 seconds each.' },
-    { id: 'build',    t0: m(19,10), where: 'Your table', title: 'Build Time', note: 'Heads down and build. Your proctor can help if you get stuck.' },
+    { id: 'demo',     t0: m(18,45), where: 'Main stage', title: 'Agentic capabilities demo', note: 'A quick look at the agentic tools makers can use tonight.' },
+    { id: 'intros',   t0: m(19,5),  where: 'Your table', title: 'Table intros', note: 'Introduce yourself and share your build idea. 90 seconds each.' },
+    { id: 'build',    t0: m(19,15), where: 'Your table', title: 'Build Time', note: 'Heads down and build. Your proctor can help if you get stuck.' },
     { id: 'demos',    t0: m(20,30), where: 'Your table', title: 'Table demos', note: 'One-minute demo each. Show what it does.' },
     { id: 'winner',   t0: m(20,45), where: 'Your table', title: 'Pick the table winner', note: '' },
     { id: 'showcase', t0: m(21,5),  where: 'Main stage', title: 'Finalist showcase', note: 'Five finalists demo on the main stage.' },
@@ -386,7 +386,7 @@ body.idle .ctl{opacity:0;pointer-events:none}
   }
 
   // ---- saved adjustments (this browser only, today only) ----
-  const KEY = 'cape-clock-agenda-v1';
+  const KEY = 'cape-clock-agenda-' + AGENDA.map(a => a.t0 / 60).join('.');
   const today = () => dayFmt.format(new Date());
   function save() {
     try { localStorage.setItem(KEY, JSON.stringify({ day: today(), times, history: history.slice(-20) })); } catch (e) {}
@@ -739,7 +739,7 @@ body.idle .ctl{opacity:0;pointer-events:none}
   function previewAt(secs) { offset = secs - vegasSecs(new Date()); $('previewBadge').hidden = false; render(); }
   $('pvGo').addEventListener('click', () => { const v = $('pvTime').value; if (!v) return; const [h, mi] = v.split(':').map(Number); previewAt(m(h, mi)); });
   $('pvLive').addEventListener('click', () => { offset = 0; $('previewBadge').hidden = true; render(); });
-  [[17,45,'5:45'],[18,10,'6:10'],[18,42,'6:42'],[19,5,'7:05'],[19,45,'7:45'],[20,35,'8:35'],[20,46,'8:46'],[21,10,'9:10'],[21,25,'9:25']]
+  [[17,45,'5:45'],[18,10,'6:10'],[18,50,'6:50'],[19,8,'7:08'],[19,45,'7:45'],[20,35,'8:35'],[20,46,'8:46'],[21,10,'9:10'],[21,25,'9:25']]
     .forEach(([h, mi, lab]) => {
       const b = document.createElement('button'); b.className = 'btn'; b.type = 'button'; b.textContent = lab;
       b.addEventListener('click', () => { $('pvTime').value = `${String(h).padStart(2,'0')}:${String(mi).padStart(2,'0')}`; previewAt(m(h, mi)); });
