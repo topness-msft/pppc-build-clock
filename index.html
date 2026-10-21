@@ -360,9 +360,8 @@ body.idle .ctl{opacity:0;pointer-events:none}
       { id: 'pre', start: -Infinity, end: W, hero: 'countdown', eyebrow: 'Kickoff in', target: W,
         sub: `Welcome on the <b>main stage</b> at <b>${clockLabel(W)}</b>`, rail: { from: Math.min(D, W - 600), to: W }, side: ['now', 'next'] },
       { id: 'stage', start: W, end: I, hero: 'item', rail: { from: W, to: I }, side: ['next'] },
-      { id: 'intros', start: I, end: B, hero: 'countdown', ...toShowcase, rail: { from: I, to: S }, side: ['now', 'next'] },
-      // build time: the current item goes big in the middle, the showcase countdown moves to the top-right card
-      { id: 'focus', start: B, end: WIN, hero: 'item', itemRail: true, ...toShowcase, side: ['count', 'next'] },
+      // table intros and build time: the current item goes big in the middle, the showcase countdown moves to the top-right card
+      { id: 'focus', start: I, end: WIN, hero: 'item', itemRail: true, ...toShowcase, side: ['count', 'next'] },
       // MCs run the table-winner pick: countdown back in the middle, no Happening now card
       { id: 'winner', start: WIN, end: S, hero: 'countdown', ...toShowcase, rail: { from: I, to: S }, side: ['next'] },
       { id: 'showcase', start: S, end: A, hero: 'item', rail: null, side: ['next'] },
