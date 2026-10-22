@@ -335,12 +335,7 @@ body.idle .ctl{opacity:0;pointer-events:none}
     <p class="msg" id="opMsg" role="status"></p>
   </section>
   <section class="sec">
-    <h2>Closing</h2>
-    <div class="grp">
-      <label class="lab" for="closer">On screen from <span id="closerAt">9:20 PM</span></label>
-      <div class="row"><select id="closer"></select></div>
-      <p class="hint">Back and Next beside the Operator button (or Page Up / Page Down on a clicker) step through every screen, including these two.</p>
-    </div>
+    <h2>People's Choice</h2>
     <div class="row"><a class="btn" href="https://crowdhum.com/presenter.html?room=POWR" target="_blank" rel="noopener" style="text-decoration:none">Open CrowdHum presenter ↗</a></div>
   </section>
   <section class="sec">
@@ -610,10 +605,8 @@ body.idle .ctl{opacity:0;pointer-events:none}
       ? 'Adjusted: ' + changed.map(a => `${esc(a.title)} <b>${shortLabel(a.t0)} → ${shortLabel(a.t)}</b>`).join(', ')
       : 'Running on the printed agenda.';
     $('undo').disabled = !history.length;
-    $('closerAt').textContent = clockLabel(T('awards'));
     $('pinBox').hidden = pin === null;
     if (pin !== null) $('pinStatus').innerHTML = `Showing <b>${esc(STEPS[pin].label)}</b> by hand. The clock says ${esc(STEPS[naturalStep(t)].label)}.`;
-    if ($('closer').value !== closer) $('closer').value = closer;
     const next = list[ci + 1];
     const nb = $('nextNow');
     if (!nb.classList.contains('armed')) {
@@ -663,20 +656,11 @@ body.idle .ctl{opacity:0;pointer-events:none}
     const next = times.slice(); next[i] = Math.floor(t / 60) * 60;
     commit(next, `${AGENDA[i].title} started now. Later items keep their times.`);
   });
-  // closing block: People's Choice -> judges' awards
-  function setCloser(id) {
-    if (id === closer || !CLOSERS.some(c => c.id === id)) return;
-    closer = id; $('closer').value = id;
-    // choosing a closing screen shows it now, even before 9:20
-    pin = STEPS.findIndex(s => s.closer === id);
-    if (pin === naturalStep(now())) pin = null;
-    save(); lastSide = ''; render();
-  }
   // Back / Next walk through every screen in agenda order
   function step(dir) {
     const n = (pin === null ? naturalStep(now()) : pin) + dir;
     if (n < 0 || n >= STEPS.length) return;
-    if (STEPS[n].closer) { closer = STEPS[n].closer; $('closer').value = closer; }
+    if (STEPS[n].closer) closer = STEPS[n].closer;
     pin = n;
     if (pin === naturalStep(now())) pin = null;
     save(); lastSide = ''; lastRailKey = ''; render();
@@ -684,9 +668,6 @@ body.idle .ctl{opacity:0;pointer-events:none}
   $('stepBack').addEventListener('click', () => step(-1));
   $('stepNext').addEventListener('click', () => step(1));
   $('follow').addEventListener('click', () => { pin = null; save(); lastSide = ''; lastRailKey = ''; render(); });
-  $('closer').innerHTML = CLOSERS.map(c => `<option value="${c.id}">${esc(c.label)}</option>`).join('');
-  $('closer').value = closer;
-  $('closer').addEventListener('change', e => setCloser(e.target.value));
   document.addEventListener('keydown', e => {
     if (e.target.closest && e.target.closest('input,select,textarea')) return;
     if (e.key === 'ArrowRight' || e.key === 'PageDown') { step(1); e.preventDefault(); }
