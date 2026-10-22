@@ -180,7 +180,21 @@ body.idle .ctl{opacity:0;pointer-events:none}
 .panel h2{margin:0;font:700 13px var(--f-body);letter-spacing:.14em;text-transform:uppercase;color:var(--yellow)}
 .panel p{margin:0;color:var(--muted);line-height:1.4}
 .panel .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-.panel input{font:600 15px var(--f-body);background:var(--ink);color:var(--fg);border:1.5px solid var(--line);border-radius:10px;padding:7px 10px}
+.panel input,.panel select{font:600 15px var(--f-body);background:var(--ink);color:var(--fg);border:1.5px solid var(--line);border-radius:10px;padding:7px 10px}
+.panel select:focus-visible{outline:2px solid var(--yellow);outline-offset:2px}
+.btn.quiet{background:transparent;color:var(--muted)}
+
+/* judges' awards: four judges across the full width */
+.mid.full{grid-template-columns:1fr}
+.mid.full .side{display:none}
+.judges{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:calc(var(--u)*3);width:100%;margin-top:calc(var(--u)*2)}
+.judge{display:grid;justify-items:center;align-content:start;gap:calc(var(--u)*1);text-align:center;min-width:0}
+.jph{width:calc(var(--u)*21);max-width:100%;aspect-ratio:1;box-sizing:border-box;border-radius:50%;padding:calc(var(--u)*.6);background:conic-gradient(from var(--a,0deg),var(--pink),var(--yellow),var(--teal),var(--blue),var(--purple),var(--pink))}
+.jph > *{width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;background:var(--ink-2)}
+.jini{display:grid;place-items:center;font-family:var(--f-groovy);font-size:calc(var(--u)*6);color:var(--muted)}
+.jname{font-weight:700;font-size:calc(var(--u)*3);line-height:1.1;text-wrap:balance}
+.jrole{font-size:calc(var(--u)*2);color:var(--muted);font-weight:500;line-height:1.25;text-wrap:balance}
+@media (max-width:900px){.judges{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .panel .jump .btn{padding:6px 10px;font-size:13px}
 
 @media (max-aspect-ratio: 4/3){
@@ -250,6 +264,7 @@ body.idle .ctl{opacity:0;pointer-events:none}
           <a class="presenter" href="https://crowdhum.com/presenter.html?room=POWR" target="_blank" rel="noopener">Open CrowdHum presenter ↗</a>
         </div>
       </div>
+      <div class="judges" id="judges" hidden></div>
     </main>
 
     <aside class="side">
@@ -267,6 +282,10 @@ body.idle .ctl{opacity:0;pointer-events:none}
         <div class="k">Coming up</div>
         <div class="ups" id="ups"></div>
       </div>
+      <div class="card next" id="afterCard" hidden>
+        <div class="k">Up next</div>
+        <div class="up"><div class="meta">Main stage</div><div class="ti">Judges' awards</div></div>
+      </div>
     </aside>
   </div>
 
@@ -274,6 +293,7 @@ body.idle .ctl{opacity:0;pointer-events:none}
 </div>
 
 <div class="ctl">
+  <button class="btn quiet" id="nextView" type="button" hidden>Next: Judges' awards →</button>
   <button class="btn" id="fsBtn" type="button">Full screen</button>
   <button class="btn" id="pvBtn" type="button" aria-expanded="false" aria-controls="panel">Operator</button>
 </div>
@@ -310,7 +330,12 @@ body.idle .ctl{opacity:0;pointer-events:none}
     <p class="msg" id="opMsg" role="status"></p>
   </section>
   <section class="sec">
-    <h2>People's Choice</h2>
+    <h2>Closing</h2>
+    <div class="grp">
+      <label class="lab" for="closer">On screen from <span id="closerAt">9:20 PM</span></label>
+      <div class="row"><select id="closer"></select></div>
+      <p class="hint">Or use Next beside the Operator button, or the → key on a clicker.</p>
+    </div>
     <div class="row"><a class="btn" href="https://crowdhum.com/presenter.html?room=POWR" target="_blank" rel="noopener" style="text-decoration:none">Open CrowdHum presenter ↗</a></div>
   </section>
   <section class="sec">
@@ -344,6 +369,21 @@ body.idle .ctl{opacity:0;pointer-events:none}
     { id: 'awards',   t0: m(21,20), where: 'Main stage', title: "People's Choice & awards", note: "Vote for People's Choice, then awards and close." },
   ];
   const IDX = Object.fromEntries(AGENDA.map((a, i) => [a.id, i]));
+
+  // Judges for the judges' awards screen. Put photos in the repo's judges/ folder (square crops work best);
+  // until a photo loads, the judge's initials show instead.
+  const JUDGES = [
+    { name: 'Judge 1', role: 'Name and title to come', photo: 'judges/judge-1.jpg' },
+    { name: 'Judge 2', role: 'Name and title to come', photo: 'judges/judge-2.jpg' },
+    { name: 'Judge 3', role: 'Name and title to come', photo: 'judges/judge-3.jpg' },
+    { name: 'Judge 4', role: 'Name and title to come', photo: 'judges/judge-4.jpg' },
+  ];
+  // The closing block (People's Choice & awards) has no fixed times inside it; the operator moves through these.
+  const CLOSERS = [
+    { id: 'vote', label: "People's Choice vote" },
+    { id: 'judges', label: "Judges' awards" },
+  ];
+  let closer = 'vote';
   const WINNER_WINDOW = 5 * 60; // table winner due 5 minutes after the pick starts
 
   let times = AGENDA.map(a => a.t0);
@@ -365,7 +405,7 @@ body.idle .ctl{opacity:0;pointer-events:none}
       // MCs run the table-winner pick: countdown back in the middle, no Happening now card
       { id: 'winner', start: WIN, end: S, hero: 'countdown', ...toShowcase, rail: { from: I, to: S }, side: ['next'] },
       { id: 'showcase', start: S, end: A, hero: 'item', rail: null, side: ['next'] },
-      { id: 'vote', start: A, end: Infinity, hero: 'vote', rail: null, side: ['now'] },
+      { id: 'close', start: A, end: Infinity, hero: closer, rail: null, side: closer === 'vote' ? ['after'] : [] },
     ];
   }
 
@@ -396,13 +436,14 @@ body.idle .ctl{opacity:0;pointer-events:none}
   const KEY = 'cape-clock-agenda-' + AGENDA.map(a => a.t0 / 60).join('.');
   const today = () => dayFmt.format(new Date());
   function save() {
-    try { localStorage.setItem(KEY, JSON.stringify({ day: today(), times, history: history.slice(-20) })); } catch (e) {}
+    try { localStorage.setItem(KEY, JSON.stringify({ day: today(), times, history: history.slice(-20), closer })); } catch (e) {}
   }
   (function load() {
     try {
       const s = JSON.parse(localStorage.getItem(KEY) || 'null');
       if (s && s.day === today() && Array.isArray(s.times) && s.times.length === AGENDA.length) {
         times = s.times; history = Array.isArray(s.history) ? s.history : [];
+        if (CLOSERS.some(c => c.id === s.closer)) closer = s.closer;
       }
     } catch (e) {}
   })();
@@ -452,10 +493,15 @@ body.idle .ctl{opacity:0;pointer-events:none}
     const deadline = T('winner') + WINNER_WINDOW;
 
     // hero
-    const vote = phase.hero === 'vote';
+    const vote = phase.hero === 'vote', judges = phase.hero === 'judges';
     $('vote').hidden = !vote;
-    big.hidden = vote;
-    $('sub').hidden = vote;
+    $('judges').hidden = !judges;
+    document.querySelector('.mid').classList.toggle('full', judges);
+    big.hidden = vote || judges;
+    $('sub').hidden = vote || judges;
+    const nv = $('nextView');
+    nv.hidden = phase.id !== 'close';
+    nv.textContent = closer === 'vote' ? "Next: Judges' awards →" : "← Back to People's Choice";
     if (phase.hero === 'countdown') {
       const left = phase.target - t, c = countdownHtml(left);
       $('eyebrow').textContent = phase.eyebrow;
@@ -473,7 +519,7 @@ body.idle .ctl{opacity:0;pointer-events:none}
       big.classList.remove('urgent');
       $('sub').textContent = cur ? cur.note : '';
     } else {
-      $('eyebrow').textContent = "People's Choice";
+      $('eyebrow').textContent = vote ? "People's Choice" : "Judges' awards";
       $('where').hidden = true;
     }
 
@@ -497,6 +543,7 @@ body.idle .ctl{opacity:0;pointer-events:none}
     }
 
     // happening now card
+    $('afterCard').hidden = !phase.side.includes('after');
     const nowCard = $('nowCard');
     nowCard.hidden = !phase.side.includes('now');
     if (!nowCard.hidden) {
@@ -542,6 +589,8 @@ body.idle .ctl{opacity:0;pointer-events:none}
       ? 'Adjusted: ' + changed.map(a => `${esc(a.title)} <b>${shortLabel(a.t0)} → ${shortLabel(a.t)}</b>`).join(', ')
       : 'Running on the printed agenda.';
     $('undo').disabled = !history.length;
+    $('closerAt').textContent = clockLabel(T('awards'));
+    if ($('closer').value !== closer) $('closer').value = closer;
     const next = list[ci + 1];
     const nb = $('nextNow');
     if (!nb.classList.contains('armed')) {
@@ -591,6 +640,45 @@ body.idle .ctl{opacity:0;pointer-events:none}
     const next = times.slice(); next[i] = Math.floor(t / 60) * 60;
     commit(next, `${AGENDA[i].title} started now. Later items keep their times.`);
   });
+  // closing block: People's Choice -> judges' awards
+  function setCloser(id) {
+    if (id === closer || !CLOSERS.some(c => c.id === id)) return;
+    closer = id; $('closer').value = id; save(); render();
+  }
+  function stepCloser(dir) {
+    const i = CLOSERS.findIndex(c => c.id === closer) + dir;
+    if (i >= 0 && i < CLOSERS.length) setCloser(CLOSERS[i].id);
+  }
+  $('closer').innerHTML = CLOSERS.map(c => `<option value="${c.id}">${esc(c.label)}</option>`).join('');
+  $('closer').value = closer;
+  $('closer').addEventListener('change', e => setCloser(e.target.value));
+  $('nextView').addEventListener('click', () => setCloser(closer === 'vote' ? 'judges' : 'vote'));
+  document.addEventListener('keydown', e => {
+    if (e.target.closest && e.target.closest('input,select,textarea')) return;
+    if (!(now() >= T('awards'))) return;
+    if (e.key === 'ArrowRight' || e.key === 'PageDown') { stepCloser(1); e.preventDefault(); }
+    if (e.key === 'ArrowLeft' || e.key === 'PageUp') { stepCloser(-1); e.preventDefault(); }
+  });
+
+  // judges grid
+  (function drawJudges() {
+    const host = $('judges');
+    JUDGES.forEach((j, i) => {
+      const card = document.createElement('div'); card.className = 'judge';
+      const ring = document.createElement('div'); ring.className = 'jph'; ring.style.setProperty('--a', (i * 72) + 'deg');
+      const initials = document.createElement('div'); initials.className = 'jini';
+      initials.textContent = j.name.split(/\s+/).slice(0, 2).map(w => w[0] || '').join('').toUpperCase();
+      if (j.photo) {
+        const img = new Image(); img.alt = j.name; img.decoding = 'async';
+        img.onerror = () => img.replaceWith(initials);
+        img.src = j.photo; ring.appendChild(img);
+      } else ring.appendChild(initials);
+      const name = document.createElement('div'); name.className = 'jname'; name.textContent = j.name;
+      const role = document.createElement('div'); role.className = 'jrole'; role.textContent = j.role;
+      card.append(ring, name, role); host.appendChild(card);
+    });
+  })();
+
   twoStep($('reset'), () => commit(AGENDA.map(a => a.t0), 'Back on the printed agenda.'));
   $('undo').addEventListener('click', () => {
     if (!history.length) return;
