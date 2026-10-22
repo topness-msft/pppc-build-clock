@@ -293,13 +293,18 @@ body.idle .ctl{opacity:0;pointer-events:none}
 </div>
 
 <div class="ctl">
-  <button class="btn quiet" id="nextView" type="button" hidden>Next: Judges' awards →</button>
+  <button class="btn quiet" id="stepBack" type="button" title="Show the previous screen (Page Up)">‹ Back</button>
+  <button class="btn quiet" id="stepNext" type="button" title="Show the next screen (Page Down)">Next ›</button>
   <button class="btn" id="fsBtn" type="button">Full screen</button>
   <button class="btn" id="pvBtn" type="button" aria-expanded="false" aria-controls="panel">Operator</button>
 </div>
 <div class="panel" id="panel" hidden>
   <section class="sec">
     <h2>Adjust the agenda</h2>
+    <div class="grp" id="pinBox" hidden>
+      <p class="status" id="pinStatus"></p>
+      <div class="row"><button class="btn" id="follow" type="button">Follow the clock</button></div>
+    </div>
     <p class="status" id="opStatus"></p>
     <div class="grp">
       <div class="lab">Running late or early</div>
@@ -334,7 +339,7 @@ body.idle .ctl{opacity:0;pointer-events:none}
     <div class="grp">
       <label class="lab" for="closer">On screen from <span id="closerAt">9:20 PM</span></label>
       <div class="row"><select id="closer"></select></div>
-      <p class="hint">Or use Next beside the Operator button, or the → key on a clicker.</p>
+      <p class="hint">Back and Next beside the Operator button (or Page Up / Page Down on a clicker) step through every screen, including these two.</p>
     </div>
     <div class="row"><a class="btn" href="https://crowdhum.com/presenter.html?room=POWR" target="_blank" rel="noopener" style="text-decoration:none">Open CrowdHum presenter ↗</a></div>
   </section>
@@ -384,6 +389,13 @@ body.idle .ctl{opacity:0;pointer-events:none}
     { id: 'judges', label: "Judges' awards" },
   ];
   let closer = 'vote';
+  // Every screen in order, for Back / Next. The closing block is two screens.
+  const STEPS = AGENDA.flatMap((a, i) => a.id === 'awards'
+    ? CLOSERS.map(c => ({ i, closer: c.id, label: c.label }))
+    : [{ i, label: a.title }]);
+  // pin: a step index the operator chose with Back / Next, or null to follow the clock.
+  // It lets go by itself once the clock reaches the same screen.
+  let pin = null;
   const WINNER_WINDOW = 5 * 60; // table winner due 5 minutes after the pick starts
 
   let times = AGENDA.map(a => a.t0);
@@ -436,7 +448,7 @@ body.idle .ctl{opacity:0;pointer-events:none}
   const KEY = 'cape-clock-agenda-' + AGENDA.map(a => a.t0 / 60).join('.');
   const today = () => dayFmt.format(new Date());
   function save() {
-    try { localStorage.setItem(KEY, JSON.stringify({ day: today(), times, history: history.slice(-20), closer })); } catch (e) {}
+    try { localStorage.setItem(KEY, JSON.stringify({ day: today(), times, history: history.slice(-20), closer, pin })); } catch (e) {}
   }
   (function load() {
     try {
@@ -444,6 +456,7 @@ body.idle .ctl{opacity:0;pointer-events:none}
       if (s && s.day === today() && Array.isArray(s.times) && s.times.length === AGENDA.length) {
         times = s.times; history = Array.isArray(s.history) ? s.history : [];
         if (CLOSERS.some(c => c.id === s.closer)) closer = s.closer;
+        if (Number.isInteger(s.pin) && s.pin >= 0 && s.pin < STEPS.length) pin = s.pin;
       }
     } catch (e) {}
   })();
@@ -484,11 +497,18 @@ body.idle .ctl{opacity:0;pointer-events:none}
   }
 
   let lastSide = '';
+  function naturalStep(t) {
+    let ci = 0; times.forEach((x, i) => { if (t >= x) ci = i; });
+    return STEPS.findIndex(s => s.i === ci && (!s.closer || s.closer === closer));
+  }
   function render() {
     const t = now(), list = items();
     $('clock').textContent = clockLabel(t);
-    const phase = phases().find(p => t >= p.start && t < p.end);
-    let ci = -1; list.forEach((a, i) => { if (t >= a.t) ci = i; });
+    if (pin !== null && pin === naturalStep(t)) { pin = null; save(); }
+    // tv picks which screen shows; countdowns below still use the real time t
+    const tv = pin === null ? t : times[STEPS[pin].i];
+    const phase = phases().find(p => tv >= p.start && tv < p.end);
+    let ci = -1; list.forEach((a, i) => { if (tv >= a.t) ci = i; });
     const cur = list[ci], nextItem = list[ci + 1];
     const deadline = T('winner') + WINNER_WINDOW;
 
@@ -499,9 +519,10 @@ body.idle .ctl{opacity:0;pointer-events:none}
     document.querySelector('.mid').classList.toggle('full', judges);
     big.hidden = vote || judges;
     $('sub').hidden = vote || judges;
-    const nv = $('nextView');
-    nv.hidden = phase.id !== 'close';
-    nv.textContent = closer === 'vote' ? "Next: Judges' awards →" : "← Back to People's Choice";
+    const here = pin === null ? naturalStep(t) : pin;
+    $('stepBack').disabled = here <= 0;
+    $('stepNext').disabled = here >= STEPS.length - 1;
+    $('stepNext').textContent = here < STEPS.length - 1 ? `Next: ${STEPS[here + 1].label} ›` : 'Next ›';
     if (phase.hero === 'countdown') {
       const left = phase.target - t, c = countdownHtml(left);
       $('eyebrow').textContent = phase.eyebrow;
@@ -559,12 +580,12 @@ body.idle .ctl{opacity:0;pointer-events:none}
     // coming up: next two items
     const ups = phase.side.includes('next') ? list.slice(ci + 1, ci + 3) : [];
     $('nextCard').hidden = !ups.length;
-    const sideKey = ups.map((a, i) => a.id + a.t + (i === 0 ? inWords(a.t - t) : '')).join('|');
+    const sideKey = ups.map((a, i) => a.id + a.t + (i === 0 ? (a.t > t ? inWords(a.t - t) : 'up') : '')).join('|');
     if (sideKey !== lastSide) {
       lastSide = sideKey;
       $('ups').innerHTML = ups.map((a, i) => `
         <div class="up">
-          <div class="meta"><span class="tm">${clockLabel(a.t)}</span>${a.where ? ' · ' + esc(a.where) : ''}${i === 0 ? ` · <span class="in">in ${inWords(a.t - t)}</span>` : ''}</div>
+          <div class="meta"><span class="tm">${clockLabel(a.t)}</span>${a.where ? ' · ' + esc(a.where) : ''}${i === 0 ? ` · <span class="in">${a.t > t ? 'in ' + inWords(a.t - t) : 'up next'}</span>` : ''}</div>
           <div class="ti">${esc(a.title)}</div>
         </div>`).join('');
     }
@@ -590,6 +611,8 @@ body.idle .ctl{opacity:0;pointer-events:none}
       : 'Running on the printed agenda.';
     $('undo').disabled = !history.length;
     $('closerAt').textContent = clockLabel(T('awards'));
+    $('pinBox').hidden = pin === null;
+    if (pin !== null) $('pinStatus').innerHTML = `Showing <b>${esc(STEPS[pin].label)}</b> by hand. The clock says ${esc(STEPS[naturalStep(t)].label)}.`;
     if ($('closer').value !== closer) $('closer').value = closer;
     const next = list[ci + 1];
     const nb = $('nextNow');
@@ -643,21 +666,31 @@ body.idle .ctl{opacity:0;pointer-events:none}
   // closing block: People's Choice -> judges' awards
   function setCloser(id) {
     if (id === closer || !CLOSERS.some(c => c.id === id)) return;
-    closer = id; $('closer').value = id; save(); render();
+    closer = id; $('closer').value = id;
+    // choosing a closing screen shows it now, even before 9:20
+    pin = STEPS.findIndex(s => s.closer === id);
+    if (pin === naturalStep(now())) pin = null;
+    save(); lastSide = ''; render();
   }
-  function stepCloser(dir) {
-    const i = CLOSERS.findIndex(c => c.id === closer) + dir;
-    if (i >= 0 && i < CLOSERS.length) setCloser(CLOSERS[i].id);
+  // Back / Next walk through every screen in agenda order
+  function step(dir) {
+    const n = (pin === null ? naturalStep(now()) : pin) + dir;
+    if (n < 0 || n >= STEPS.length) return;
+    if (STEPS[n].closer) { closer = STEPS[n].closer; $('closer').value = closer; }
+    pin = n;
+    if (pin === naturalStep(now())) pin = null;
+    save(); lastSide = ''; lastRailKey = ''; render();
   }
+  $('stepBack').addEventListener('click', () => step(-1));
+  $('stepNext').addEventListener('click', () => step(1));
+  $('follow').addEventListener('click', () => { pin = null; save(); lastSide = ''; lastRailKey = ''; render(); });
   $('closer').innerHTML = CLOSERS.map(c => `<option value="${c.id}">${esc(c.label)}</option>`).join('');
   $('closer').value = closer;
   $('closer').addEventListener('change', e => setCloser(e.target.value));
-  $('nextView').addEventListener('click', () => setCloser(closer === 'vote' ? 'judges' : 'vote'));
   document.addEventListener('keydown', e => {
     if (e.target.closest && e.target.closest('input,select,textarea')) return;
-    if (!(now() >= T('awards'))) return;
-    if (e.key === 'ArrowRight' || e.key === 'PageDown') { stepCloser(1); e.preventDefault(); }
-    if (e.key === 'ArrowLeft' || e.key === 'PageUp') { stepCloser(-1); e.preventDefault(); }
+    if (e.key === 'ArrowRight' || e.key === 'PageDown') { step(1); e.preventDefault(); }
+    if (e.key === 'ArrowLeft' || e.key === 'PageUp') { step(-1); e.preventDefault(); }
   });
 
   // judges grid
