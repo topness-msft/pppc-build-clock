@@ -182,7 +182,10 @@ body.idle .ctl{opacity:0;pointer-events:none}
 .panel .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .panel input,.panel select{font:600 15px var(--f-body);background:var(--ink);color:var(--fg);border:1.5px solid var(--line);border-radius:10px;padding:7px 10px}
 .panel select:focus-visible{outline:2px solid var(--yellow);outline-offset:2px}
-.btn.quiet{background:transparent;color:var(--muted)}
+/* toolbar: ghosted so it stays out of the room's way; brightens under the mouse */
+.btn.quiet{background:transparent;color:var(--muted);border-color:color-mix(in srgb, var(--line) 70%, transparent);opacity:.55;transition:opacity .2s}
+.btn.quiet:hover,.btn.quiet:focus-visible,.btn.quiet[aria-expanded="true"]{opacity:1;color:var(--fg)}
+.btn.quiet:disabled{opacity:.25}
 
 /* judges' awards: four judges across the full width */
 .mid.full{grid-template-columns:1fr}
@@ -296,8 +299,8 @@ body.idle .ctl{opacity:0;pointer-events:none}
 <div class="ctl">
   <button class="btn quiet" id="stepBack" type="button" title="Show the previous screen (Page Up)">‹ Back</button>
   <button class="btn quiet" id="stepNext" type="button" title="Show the next screen (Page Down)">Next ›</button>
-  <button class="btn" id="fsBtn" type="button">Full screen</button>
-  <button class="btn" id="pvBtn" type="button" aria-expanded="false" aria-controls="panel">Operator</button>
+  <button class="btn quiet" id="fsBtn" type="button">Full screen</button>
+  <button class="btn quiet" id="pvBtn" type="button" aria-expanded="false" aria-controls="panel">Operator</button>
 </div>
 <div class="panel" id="panel" hidden>
   <section class="sec">
