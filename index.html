@@ -192,7 +192,8 @@ body.idle .ctl{opacity:0;pointer-events:none}
 .jph{width:calc(var(--u)*21);max-width:100%;aspect-ratio:1;box-sizing:border-box;border-radius:50%;padding:calc(var(--u)*.6);background:conic-gradient(from var(--a,0deg),var(--pink),var(--yellow),var(--teal),var(--blue),var(--purple),var(--pink))}
 .jph > *{width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;background:var(--ink-2)}
 .jini{display:grid;place-items:center;font-family:var(--f-groovy);font-size:calc(var(--u)*6);color:var(--muted)}
-.jname{font-weight:700;font-size:calc(var(--u)*3);line-height:1.1;text-wrap:balance}
+.jname{font-weight:700;font-size:calc(var(--u)*2.6);line-height:1.1;white-space:nowrap}
+@media (max-width:900px){.jname{white-space:normal;text-wrap:balance}}
 .jrole{font-size:calc(var(--u)*2);color:var(--muted);font-weight:500;line-height:1.25;text-wrap:balance}
 @media (max-width:900px){.judges{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .panel .jump .btn{padding:6px 10px;font-size:13px}
@@ -373,10 +374,10 @@ body.idle .ctl{opacity:0;pointer-events:none}
   // Judges for the judges' awards screen. Put photos in the repo's judges/ folder (square crops work best);
   // until a photo loads, the judge's initials show instead.
   const JUDGES = [
-    { name: 'Judge 1', role: 'Microsoft', photo: 'judges/judge-1.jpg' },
-    { name: 'Judge 2', role: 'Microsoft', photo: 'judges/judge-2.jpg' },
-    { name: 'Judge 3', role: 'Microsoft', photo: 'judges/judge-3.jpg' },
-    { name: 'Judge 4', role: 'Name and title to come', photo: 'judges/judge-4.jpg' },
+    { name: 'Bas Brekelmans', role: 'Microsoft', photo: 'judges/judge-1.jpg' },
+    { name: 'Dan Stevenson', role: 'Microsoft', photo: 'judges/judge-2.jpg' },
+    { name: 'Joe Rafferty', role: 'Microsoft', photo: 'judges/judge-3.jpg' },
+    { name: 'Mats Necker', role: 'dhino', photo: 'judges/judge-4.jpg' },
   ];
   // The closing block (People's Choice & awards) has no fixed times inside it; the operator moves through these.
   const CLOSERS = [
