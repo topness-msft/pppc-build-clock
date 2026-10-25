@@ -622,8 +622,10 @@ body.idle .ctl{opacity:0;pointer-events:none}
     }
 
     // coming up: next two items
-    // during build time the MCP Station card takes the Coming up slot
-    const showMcp = phase.side.includes('next') && !!cur && cur.id === 'build';
+    // for the first 30 minutes of build time the MCP Station card takes the Coming up slot;
+    // after that Coming up returns so tables can see Table demos approaching
+    const MCP_WINDOW = 30 * 60;
+    const showMcp = phase.side.includes('next') && !!cur && cur.id === 'build' && t < cur.t + MCP_WINDOW;
     $('mcpCard').hidden = !showMcp;
     const ups = phase.side.includes('next') && !showMcp ? list.slice(ci + 1, ci + 3) : [];
     $('nextCard').hidden = !ups.length;
