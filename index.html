@@ -230,8 +230,28 @@ body.idle .ctl{opacity:0;pointer-events:none}
   .up .meta{font-size:13px}.up .ti{font-size:18px}
   .foot{font-size:11px}
 }
+/* Vegas judges reveal: full-screen image, letterboxed over a blurred copy of itself */
+.vegas{position:fixed;inset:0;z-index:4;background:#0a0204;overflow:hidden;animation:vIn .35s ease-out both}
+.vegas.out{animation:vOut .6s ease-in both}
+.vbg{position:absolute;inset:-60px;background:url(judges/vegas.jpg) center/cover;filter:blur(30px) brightness(.45) saturate(1.2)}
+.vstage{--sw:min(100vw,150vh);position:absolute;inset:0;margin:auto;width:var(--sw);height:calc(var(--sw) / 1.5);animation:vIris 1.6s cubic-bezier(.2,.8,.2,1) .1s both}
+.vstage img{display:block;width:100%;height:100%;object-fit:cover}
+/* live time painted over the clock sign in the artwork */
+.vclock{position:absolute;left:76.7%;top:5.5%;width:20.6%;height:7.4%;display:grid;place-items:center;border-radius:.25em;
+  background:radial-gradient(ellipse at 50% 50%,#3a0306 0%,#2a0204 60%,#200103 100%);box-shadow:0 0 .3em .25em #250103;
+  color:#fff1cf;font:700 calc(var(--sw) * .036)/1 var(--f-body);letter-spacing:.01em;font-variant-numeric:tabular-nums;
+  text-shadow:0 0 .12em #ffd27a,0 0 .35em #ff7a1a}
+.vflash{position:absolute;inset:0;pointer-events:none;opacity:0;background:radial-gradient(circle at 50% 55%,rgba(255,240,190,.95),rgba(255,120,60,.45) 35%,transparent 70%);animation:vFlash 1.2s ease-out both}
+#vsparks{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+@keyframes vIn{from{opacity:0}to{opacity:1}}
+@keyframes vOut{to{opacity:0}}
+@keyframes vIris{0%{clip-path:circle(0% at 50% 55%);transform:scale(1.14);filter:brightness(2.4) saturate(1.6)}
+  55%{filter:brightness(1.35) saturate(1.25)}100%{clip-path:circle(100% at 50% 55%);transform:scale(1);filter:none}}
+@keyframes vFlash{0%{opacity:0}22%{opacity:1}100%{opacity:0}}
+
 @media (prefers-reduced-motion: reduce){
   #glow,.star,.dot,.big.urgent{animation:none}
+  .vegas,.vstage,.vflash{animation-duration:.01s;animation-delay:0s}
   .fill{transition:none}
 }
 </style>
@@ -341,6 +361,17 @@ body.idle .ctl{opacity:0;pointer-events:none}
   <footer class="foot"><span>CAPE @ PPPC 2026</span><span class="rb"></span></footer>
 </div>
 
+<!-- Judges' awards, Vegas edition: revealed 20 s after the judges screen appears, or with the V key -->
+<div class="vegas" id="vegas" hidden>
+  <div class="vbg" aria-hidden="true"></div>
+  <div class="vstage">
+    <img src="judges/vegas.jpg" alt="Judges' Awards: Bas Brekelmans, Dan Stevenson and Joe Rafferty of Microsoft, and Mats Necker of dhino">
+    <div class="vclock" id="vclock" aria-hidden="true"></div>
+  </div>
+  <div class="vflash" aria-hidden="true"></div>
+  <canvas id="vsparks" aria-hidden="true"></canvas>
+</div>
+
 <div class="ctl">
   <button class="btn quiet" id="stepBack" type="button" title="Show the previous screen (Page Up)">‹ Back</button>
   <button class="btn quiet" id="stepNext" type="button" title="Show the next screen (Page Down)">Next ›</button>
@@ -440,6 +471,9 @@ body.idle .ctl{opacity:0;pointer-events:none}
   // pin: a step index the operator chose with Back / Next, or null to follow the clock.
   // It lets go by itself once the clock reaches the same screen.
   let pin = null;
+  // Vegas judges reveal
+  const VEGAS_DELAY = 20 * 1000;
+  let judgesSince = null, vegasOn = false, vegasDismissed = false, vegasOutT = null;
   const WINNER_WINDOW = 5 * 60; // table winner due 5 minutes after the pick starts
 
   let times = AGENDA.map(a => a.t0);
@@ -560,6 +594,14 @@ body.idle .ctl{opacity:0;pointer-events:none}
     const vote = phase.hero === 'vote', judges = phase.hero === 'judges';
     $('vote').hidden = !vote;
     $('judges').hidden = !judges;
+    // Vegas reveal: 20 s after the judges screen appears (V toggles it any time on that screen)
+    if (judges) {
+      if (judgesSince === null) judgesSince = Date.now();
+      if (!vegasOn && !vegasDismissed && Date.now() - judgesSince >= VEGAS_DELAY) showVegas();
+    } else {
+      judgesSince = null; vegasDismissed = false; hideVegas(true);
+    }
+    $('vclock').textContent = clockLabel(t);
     document.querySelector('.mid').classList.toggle('full', judges);
     big.hidden = vote || judges;
     $('sub').hidden = vote || judges;
@@ -726,7 +768,69 @@ body.idle .ctl{opacity:0;pointer-events:none}
     if (e.target.closest && e.target.closest('input,select,textarea')) return;
     if (e.key === 'ArrowRight' || e.key === 'PageDown') { step(1); e.preventDefault(); }
     if (e.key === 'ArrowLeft' || e.key === 'PageUp') { step(-1); e.preventDefault(); }
+    if ((e.key === 'v' || e.key === 'V') && !e.metaKey && !e.ctrlKey && !e.altKey && !$('judges').hidden) {
+      if (vegasOn) { hideVegas(); vegasDismissed = true; } else showVegas();
+    }
   });
+
+  // ---- Vegas judges reveal: iris-open the artwork behind a burst of sparkles ----
+  function showVegas() {
+    if (vegasOn) return;
+    vegasOn = true; clearTimeout(vegasOutT);
+    const v = $('vegas'); v.classList.remove('out'); v.hidden = false;
+    burst();
+  }
+  function hideVegas(fast) {
+    if (!vegasOn) return;
+    vegasOn = false; stopSparks();
+    const v = $('vegas');
+    if (fast) { v.hidden = true; v.classList.remove('out'); return; }
+    v.classList.add('out');
+    vegasOutT = setTimeout(() => { v.hidden = true; v.classList.remove('out'); }, 600);
+  }
+  let sparks = [], sparkRaf = 0, sparkCtx = null, sparkW = 0, sparkH = 0;
+  const SPARK_COLORS = ['#ffd76a', '#fff3c4', '#ff4d5e', '#ff9f43', '#ffffff', '#ffcc2e'];
+  function burst() {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const cv = $('vsparks'), dpr = Math.min(2, devicePixelRatio || 1);
+    sparkW = innerWidth; sparkH = innerHeight;
+    cv.width = sparkW * dpr; cv.height = sparkH * dpr;
+    sparkCtx = cv.getContext('2d'); sparkCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const S = Math.min(sparkW, sparkH), cx = sparkW / 2, cy = sparkH * 0.55, t0 = performance.now();
+    sparks = [];
+    for (let i = 0; i < 260; i++) {
+      const a = Math.random() * Math.PI * 2, sp = (0.25 + Math.random() * 0.9) * S * 0.022;
+      sparks.push({ x: cx, y: cy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - S * 0.004, r: S * (0.004 + Math.random() * 0.011),
+        c: SPARK_COLORS[i % SPARK_COLORS.length], born: t0 + Math.random() * 250, life: 1100 + Math.random() * 1300, star: Math.random() < 0.55 });
+    }
+    cancelAnimationFrame(sparkRaf); sparkRaf = requestAnimationFrame(sparkFrame);
+  }
+  function sparkle(ctx, x, y, r) { // four-point glint
+    ctx.beginPath(); ctx.moveTo(x, y - r); ctx.quadraticCurveTo(x, y, x + r, y); ctx.quadraticCurveTo(x, y, x, y + r);
+    ctx.quadraticCurveTo(x, y, x - r, y); ctx.quadraticCurveTo(x, y, x, y - r); ctx.fill();
+  }
+  function sparkFrame(ts) {
+    const ctx = sparkCtx; if (!ctx || !vegasOn) return;
+    ctx.clearRect(0, 0, sparkW, sparkH);
+    // after the burst, keep a gentle twinkle over the marquee lights
+    if (Math.random() < 0.12) {
+      const S = Math.min(sparkW, sparkH);
+      sparks.push({ x: Math.random() * sparkW, y: Math.random() * sparkH, vx: 0, vy: 0, r: S * (0.008 + Math.random() * 0.012),
+        c: Math.random() < 0.6 ? '#fff3c4' : '#ffd76a', born: ts, life: 900 + Math.random() * 700, star: true, twinkle: true });
+    }
+    sparks = sparks.filter(p => ts - p.born < p.life);
+    for (const p of sparks) {
+      const age = (ts - p.born) / p.life; if (age < 0) continue;
+      if (!p.twinkle) { p.x += p.vx; p.y += p.vy; p.vx *= 0.975; p.vy = p.vy * 0.975 + 0.12; }
+      ctx.globalAlpha = p.twinkle ? Math.sin(age * Math.PI) : Math.min(1, (1 - age) * 1.6);
+      ctx.fillStyle = p.c; ctx.shadowColor = p.c; ctx.shadowBlur = p.r * 2;
+      if (p.star) sparkle(ctx, p.x, p.y, p.r * (p.twinkle ? 0.6 + Math.sin(age * Math.PI) * 0.6 : 1.4));
+      else { ctx.beginPath(); ctx.arc(p.x, p.y, p.r * 0.5, 0, Math.PI * 2); ctx.fill(); }
+    }
+    ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+    sparkRaf = requestAnimationFrame(sparkFrame);
+  }
+  function stopSparks() { cancelAnimationFrame(sparkRaf); sparkRaf = 0; sparks = []; if (sparkCtx) sparkCtx.clearRect(0, 0, sparkW, sparkH); }
 
   // judges grid
   (function drawJudges() {
